@@ -14,6 +14,7 @@
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 import torch
 
@@ -140,6 +141,7 @@ class RequestState:
     request_id: str
     initial_tokens: list[int]  # Initial prompt tokens # TODO: rename this as prefill tokens
     # Optional fields
+    model_kwargs: dict[str, Any] = field(default_factory=dict)
     record_timestamps: bool = False  # Whether to record timestamps for the generated tokens
     num_children: int = 0  # Number of children requests
     # Internal fields
@@ -289,6 +291,7 @@ class RequestState:
             _timestamps=[],
             error=self.error,
             record_timestamps=self.record_timestamps,
+            model_kwargs=self.model_kwargs.copy(),
         )
         return new_request
 
@@ -309,6 +312,7 @@ class RequestState:
             max_new_tokens=max_new_tokens,
             eos_token_id=self.eos_token_id,
             streaming=self.streaming,
+            model_kwargs=self.model_kwargs,
         )
         new_state._true_initial_tokens = self._true_initial_tokens + len(self.initial_tokens)
         return new_state

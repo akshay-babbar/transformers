@@ -650,6 +650,7 @@ class ContinuousBatchingManager:
         max_new_tokens: int | None = None,
         streaming: bool = False,
         record_timestamps: bool = False,
+        **kwargs,
     ) -> str:
         """Add a new generation request to the queue.
 
@@ -678,6 +679,7 @@ class ContinuousBatchingManager:
             max_new_tokens=max_new_tokens,
             eos_token_id=self.generation_config.eos_token_id,
             streaming=streaming,
+            model_kwargs=kwargs,
         )
 
         # Use block=True with timeout to handle backpressure if queue is full
