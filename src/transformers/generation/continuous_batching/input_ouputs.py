@@ -22,7 +22,7 @@ from transformers.configuration_utils import PretrainedConfig
 
 from ...utils.metrics import traced
 from .cache import PagedAttentionCache
-from .requests import TMP_TOKEN_ID, RequestState
+from .requests import TMP_TOKEN_ID, RequestState, RequestStatus
 
 
 def attn_mask_is_needed(config: PretrainedConfig) -> bool:
@@ -461,4 +461,31 @@ class ContinuousBatchingIOs:
 
         if self.attention_mask is None:
             kwargs.attention_mask = None
-        return kwargs.asdict()  # TODO: this is imperfect, check if there is no better way to juggle dict / dataclass
+
+        final_kwargs = kwargs.asdict()
+
+        # Add extra model args from the requests (e.g. pixel_values)
+        extra_kwargs = {}
+        for state in self.requests_in_batch:
+            # We don't need to pass the extra args if the request is decoding
+            if state.status == RequestStatus.DECODING:
+                continue
+            for k, v in state.model_kwargs.items():
+                if k not in extra_kwargs:
+                    extra_kwargs[k] = []
+                extra_kwargs[k].append(v)
+
+        for k, v in extra_kwargs.items():
+            # If the value is a tensor, we stack it
+            if isinstance(v[0], torch.Tensor):
+                final_kwargs[k] = torch.cat(v, dim=0)
+            # If the value is a list, we extend it
+            elif isinstance(v[0], list):
+                final_kwargs[k] = []
+                for sublist in v:
+                    final_kwargs[k].extend(sublist)
+            # Otherwise we just pass the list
+            else:
+                final_kwargs[k] = v
+
+        return final_kwargs  # TODO: this is imperfect, check if there is no better way to juggle dict / dataclass
